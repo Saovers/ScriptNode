@@ -1,19 +1,13 @@
 var ping = require ('ping');
 var prompt = require ('prompt');
-var Sync = require ('sync');
 var SSH = require ('simple-ssh');
+var shell = require('shelljs');
 
 //Variable 
 var name;
 var olddir;
-const { exec } = require('child_process');
-
-var hash = exec('git log | head -n 1 | cut -c8-47', (err, stdout, stderr) => {
-  if (err) {
-    // node couldn't execute the command
-    return;
-  }
-});;
+const GIT = "https://github.com/Saovers"
+var hash = shell.exec('git log | head -n 1 | cut -c8-47', {silent:true}).stdout;
 console.log('Bienvenue dans le script de déploiement d\'application node vos êtes dans le dossier' + __dirname);
 
 var namestart = function(){
@@ -56,7 +50,8 @@ prompt.start();
     if (res="c"){
 		console.log('Vous avez choisi le clone');
 			clone();
-    }
+            
+    }       
     else{
     	console.log('Vous avez choisi le revert');
     }
@@ -74,12 +69,13 @@ var clone = function(){
         console.log("Il y a actuellement : "+ parseInt(stdout-1) + ' sous dossier');
         if (parseInt(stdout-1) > 1){
         	Olddirectory();
-        	RemoveOld();
+           
         }
         else{
         	console.log('Dossier OK');
-
+            crDir();
         }
+         
     }
 }).start();
 
@@ -96,6 +92,8 @@ ssh.exec('cd /var/www/'+name+' && ls -tl | tail -n 1 | cut -c42-96', {
     out: function(stdout) {
         console.log('Le vieux dossier est : '+ stdout);
         olddir=stdout;
+        console.log(olddir);
+        RemoveOld();
     }
 }).start();
 
@@ -108,11 +106,13 @@ var ssh = new SSH({
     user: 'serveur',
     pass: 'Test123*'
 });
+console.log(olddir);
 ssh.exec(' sudo rm -rd /var/www/'+name+'/'+olddir, {
     out: function(stdout) {
         console.log('dossier supprimer');
     }
 }).start();
+ crDir();
 }
 
 var crDir = function(){
@@ -121,14 +121,18 @@ var crDir = function(){
     user: 'serveur',
     pass: 'Test123*'
 });
-	console.log(hash);
 ssh.exec(' sudo mkdir -p /var/www/'+name+'/'+hash, {
     out: function(stdout) {
         console.log('dossier creer');
     }
 }).start();
+ssh.exec(' sudo git clone ' + GIT+'/'+name+ ' /var/www/'+name+'/'+hash+' | git status', {
+    out: function(stdout) {
+        console.log('dossier cloner');
+    }
+}).start();
+
 }
-    
-    
+     
 
 
