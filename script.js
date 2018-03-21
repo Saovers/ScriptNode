@@ -1,42 +1,43 @@
 var ping = require ('ping');
 var prompt = require ('prompt');
-var SSH = require ('simple-ssh');
+var SSH2Promise = require ('ssh2-promise');
 var shell = require('shelljs');
+var colors = require('colors');
+var config = require('./config.js');
+var path = require('path'); 
+var fs = require('fs');
 
 //Variable 
 var name;
 var olddir;
 const GIT = "https://github.com/Saovers"
 var hash = shell.exec('git log | head -n 1 | cut -c8-47', {silent:true}).stdout;
-console.log('Bienvenue dans le script de déploiement d\'application node vos êtes dans le dossier' + __dirname);
+var sshconfig = {
+    host: '172.16.30.24',
+    username: 'serveur',
+    password: 'Test123*'
+  }
+   
+  var ssh = new SSH2Promise(sshconfig);
+console.log('Bienvenue dans le script de déploiement d\'application node vos êtes dans le dossier '.bgGreen + __dirname);
+
 
 var namestart = function(){
-	console.log('Quel est le nom du projet?');
-prompt.start();
- prompt.get(['name'], function (err, result) {
-    console.log('Nom du projet: ' + result.name);
-    name = result.name;
-    console.log('Quel est l\'ip de votre serveur?');
-prompt.start();
- 
-  // 
-  // Get two properties from the user: username and email 
-  // 
-  prompt.get(['host'], function (err, result) {
-    // 
-    // Log the results. 
-    // 
-    console.log('  IP: ' + result.host);
-    	var hosts = [result.host];
+    var hosts = [config.host];
 hosts.forEach(function(host){
-    ping.sys.probe(host, function(isAlive){
-        var msg = isAlive ? 'host ' + host + ' is alive' : 'host ' + host + ' is dead';
+    ping.sys.probe(config.host, function(isAlive){
+        var msg = isAlive ? 'host ' + config.host + ' is alive' : 'host ' + config.host + ' is dead';
         console.log(msg);
-         cloneorrevert();
+                if (msg =='host ' + config.host + ' is alive'){
+                    cloneorrevert();
+                }
+                else{
+                    console.log('stop');
+                }
+
+         
     });
 });
-  });
-  });
 }
 
 
@@ -47,27 +48,23 @@ var cloneorrevert = function() {
 console.log('Souhaitez-vous faire un clone ou un revert? (c ou r)');
 prompt.start();
  prompt.get(['res'],function (err, result) {
-    if (res="c"){
+    if (result.res=="c"){
 		console.log('Vous avez choisi le clone');
 			clone();
             
     }       
     else{
-    	console.log('Vous avez choisi le revert');
+        console.log('Vous avez choisi le revert');
+        console.log(hash);
     }
   });
 }
 
 var clone = function(){
-	var ssh = new SSH({
-    host: '172.16.30.33',
-    user: 'serveur',
-    pass: 'Test123*'
-});
-	ssh.exec('cd /var/www/'+name+  ' && ls -lt | nl | tail -n 1 | cut -c5-6', {
-    out: function(stdout) {
-        console.log("Il y a actuellement : "+ parseInt(stdout-1) + ' sous dossier');
-        if (parseInt(stdout-1) > 1){
+	ssh.exec('cd /var/www/'+config.name+  ' && ls -lt | nl | tail -n 1 | cut -c5-6').then((data) => {
+     
+        console.log("Il y a actuellement : "+ parseInt(data-1) + ' sous dossier');
+        if (parseInt(data-1) > 10){
         	Olddirectory();
            
         }
@@ -75,64 +72,58 @@ var clone = function(){
         	console.log('Dossier OK');
             crDir();
         }
-         
-    }
-}).start();
+});
 
 }
 
 //Fonction appellée dans clone, elle prend le nom du dossier le plus vieux
 var Olddirectory = function(){
-	var ssh = new SSH({
-    host: '172.16.30.33',
-    user: 'serveur',
-    pass: 'Test123*'
-});
-ssh.exec('cd /var/www/'+name+' && ls -tl | tail -n 1 | cut -c42-96', {
-    out: function(stdout) {
-        console.log('Le vieux dossier est : '+ stdout);
-        olddir=stdout;
-        console.log(olddir);
+	
+ssh.exec('cd /var/www/'+config.name+' && ls -tl | tail -n 1 | cut -c42-96').then((olddirl)=> {
+        console.log('Le vieux dossier est : '+ olddirl);
+        olddir=olddirl;
         RemoveOld();
-    }
-}).start();
+    
+});
 
 }
 
 //Fonction appelée dans Olddirectory, elle supprime le vieux dossier s'il y a + de 10 sous dossiers dans le projets
 var RemoveOld = function(){
-var ssh = new SSH({
-    host: '172.16.30.33',
-    user: 'serveur',
-    pass: 'Test123*'
-});
 console.log(olddir);
-ssh.exec(' sudo rm -rd /var/www/'+name+'/'+olddir, {
-    out: function(stdout) {
+ssh.exec(' sudo rm -rd /var/www/'+config.name+'/'+olddir).then(()=> {
         console.log('dossier supprimer');
-    }
-}).start();
- crDir();
+        crDir();
+});
 }
 
 var crDir = function(){
-	var ssh = new SSH({
-    host: '172.16.30.33',
-    user: 'serveur',
-    pass: 'Test123*'
-});
-ssh.exec(' sudo mkdir -p /var/www/'+name+'/'+hash, {
-    out: function(stdout) {
+    console.log(hash);
+ssh.exec(' sudo mkdir -p /var/www/'+config.name+'/'+hash).then(()=> {
         console.log('dossier creer');
-    }
-}).start();
-ssh.exec(' sudo git clone ' + GIT+'/'+name+ ' /var/www/'+name+'/'+hash+' | git status', {
-    out: function(stdout) {
-        console.log('dossier cloner');
-    }
-}).start();
+        //test();
+});
+}
 
+var test = function(){
+    //console.log('sudo git clone ' + GIT+'/'+config.name+ ' /var/www/'+config.name+'/'+hash+' | git status');
+    ssh.exec(' sudo git clone ' + GIT+'/'+config.name+ ' /var/www/'+config.name+'/'+hash).then(()=> {
+        console.log('dossier cloner');
+        throw new Error('Failed');
+        Db();
+    });
 }
      
-
+var Db = function(){
+    console.log('Avez vous une base de données?');
+prompt.start();
+ prompt.get(['bd'], function (err, result) {
+ if (result.bd=="y"){
+     console.log('Oui vous en avez une');
+ }
+ else{
+    console.log('Non vous en avez pas');
+ }
+});
+}
 

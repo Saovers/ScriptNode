@@ -9,9 +9,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "colors": "^1.2.1",
     "ping": "^0.2.2",
     "prompt": "^1.0.0",
     "shelljs": "^0.8.1",
-    "simple-ssh": "^1.0.0"
+    "simple-ssh": "^1.0.0",
+    "ssh2-promise": "0.0.9"
   }
 }
