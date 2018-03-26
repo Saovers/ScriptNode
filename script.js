@@ -10,7 +10,8 @@ var fs = require('fs');
 //Variable 
 var name;
 var olddir;
-const GIT = "https://github.com/Saovers"
+var nameS;
+const GIT = 'https://github.com/Saovers';
 var hash = shell.exec('git log | head -n 1 | cut -c8-47', {silent:true}).stdout;
 var sshconfig = {
     host: '172.16.30.24',
@@ -101,29 +102,109 @@ var crDir = function(){
     console.log(hash);
 ssh.exec(' sudo mkdir -p /var/www/'+config.name+'/'+hash).then(()=> {
         console.log('dossier creer');
-        //test();
+        gitclone();
 });
+
 }
 
-var test = function(){
-    //console.log('sudo git clone ' + GIT+'/'+config.name+ ' /var/www/'+config.name+'/'+hash+' | git status');
+var gitclone = function(){
+    console.log('sudo git clone ' + GIT+'/'+config.name+ ' /var/www/'+config.name+'/'+hash);
     ssh.exec(' sudo git clone ' + GIT+'/'+config.name+ ' /var/www/'+config.name+'/'+hash).then(()=> {
         console.log('dossier cloner');
-        throw new Error('Failed');
+        
         Db();
-    });
+    }).catch((error) => {
+        console.log("Error : " + error);
+            Db();
+      });
+    
 }
      
 var Db = function(){
-    console.log('Avez vous une base de données?');
+    console.log('Avez vous une base de données?(y or n)');
 prompt.start();
  prompt.get(['bd'], function (err, result) {
  if (result.bd=="y"){
-     console.log('Oui vous en avez une');
- }
+demande();
+    
+}
  else{
     console.log('Non vous en avez pas');
  }
 });
 }
 
+var demande = function(){
+    console.log('Avez vous des scripts de maj à transmettre?');
+    prompt.start();
+    prompt.get(['res'],function (err, result) {
+
+        if (result.res == "y"){
+
+            prompt.start();
+            prompt.get(['name'],function(err,result2){
+                console.log(result2.name); 
+                nameS=result2.name;
+                transfert();
+            });      
+        }  
+        else{
+            npm();
+            exit;
+        }  
+ });
+}
+var transfert = function(){
+    console.log(config.user+'@'+config.host+' mongo localhost:27017/'+config.db+' /var/www'+nameS);
+    shell.exec('scp -r -p '+process.cwd()+'/'+nameS +' '+ config.user+'@'+config.host+':/var/www/', {silent:true}).stdout;
+    ssh.exec( 'mongo localhost:27017/'+config.db+' /var/www/'+nameS).then(()=> {
+        console.log('Script transmis et exécuter');
+        demande();
+    }).catch((error) => {
+        console.log("Error : " + error);
+      });
+    
+}
+
+var npm = function(){
+    ssh.exec('cd /var/www/$name/$HASH/ && sudo npm install').then(()=> {
+        console.log('Paquet npm installer');
+        pm2Stop();
+    }).catch((error) => {
+        console.log("Error : " + error);
+      });
+}
+
+var pm2Stop = function(){
+    ssh.exec('pm2 stop'+config.name).then(()=> {
+        console.log('PM2 stopper');
+        pm2Delete();
+    }).catch((error) => {
+        console.log("Error : " + error);
+      });
+}
+
+var pm2Delete = function(){
+    ssh.exec('pm2 delete'+config.name).then(()=> {
+        console.log('PM2 supprimer');
+        pm2Start();
+    }).catch((error) => {
+        console.log("Error : " + error);
+      });
+}
+
+var pm2Start = function(){
+    ssh.exec('pm2 start /var/www/'+config.name+'/'+hash+'/ bootstrap.js --name='+config.name).then(()=> {
+        console.log('PM2 supprimer');
+        pm2Start();
+    }).catch((error) => {
+        console.log("Error : " + error);
+      });
+}
+
+/*ssh.exec('').then(()=> {
+        console.log('');
+    }).catch((error) => {
+        console.log("Error : " + error);
+      });
+*/
