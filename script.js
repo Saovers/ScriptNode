@@ -130,6 +130,7 @@ demande();
 }
  else{
     console.log('Non vous en avez pas');
+    //todo 
  }
 });
 }
@@ -150,7 +151,7 @@ var demande = function(){
         }  
         else{
             npm();
-            exit;
+            
         }  
  });
 }
@@ -167,7 +168,7 @@ var transfert = function(){
 }
 
 var npm = function(){
-    ssh.exec('cd /var/www/$name/$HASH/ && sudo npm install').then(()=> {
+    ssh.exec('cd /var/www/'+config.name+'/'+hash,' && sudo npm install').then(()=> {
         console.log('Paquet npm installer');
         pm2Stop();
     }).catch((error) => {
@@ -176,27 +177,29 @@ var npm = function(){
 }
 
 var pm2Stop = function(){
-    ssh.exec('pm2 stop'+config.name).then(()=> {
+    ssh.exec('pm2 stop '+config.name).then(()=> {
         console.log('PM2 stopper');
         pm2Delete();
     }).catch((error) => {
-        console.log("Error : " + error);
+        console.log('PM2 n\'existe pas encore');
+        pm2Start();
+
       });
 }
 
 var pm2Delete = function(){
-    ssh.exec('pm2 delete'+config.name).then(()=> {
+    ssh.exec('pm2 delete '+config.name).then(()=> {
         console.log('PM2 supprimer');
         pm2Start();
     }).catch((error) => {
-        console.log("Error : " + error);
+        console.log('PM2 n\'existe pas encore');
+        pm2Start();
       });
 }
 
 var pm2Start = function(){
-    ssh.exec('pm2 start /var/www/'+config.name+'/'+hash+'/ bootstrap.js --name='+config.name).then(()=> {
-        console.log('PM2 supprimer');
-        pm2Start();
+    ssh.exec('pm2 start /var/www/'+config.name,'/'+hash+'/test/app/ app.js --name='+config.name).then(()=> {
+        console.log('PM2 Démarrer');
     }).catch((error) => {
         console.log("Error : " + error);
       });
