@@ -6,13 +6,15 @@ var colors = require('colors');
 var config = require('./config.js');
 var path = require('path'); 
 var fs = require('fs');
-
+var ip = require('ip');
 //Variable 
 var name;
 var olddir;
 var nameS;
+var number =0;
+var hashToRevert=0;
 const GIT = 'https://github.com/Saovers';
-var hash = shell.exec('git log | head -n 1 | cut -c8-47', {silent:true}).stdout;
+var hash = shell.exec('git log | head -n 1 | cut -c8-47', {silent:true});
 var sshconfig = {
     host: '172.16.30.24',
     username: 'serveur',
@@ -56,11 +58,57 @@ prompt.start();
     }       
     else{
         console.log('Vous avez choisi le revert');
-        console.log(hash);
+        revert();
     }
   });
 }
 
+/* -------------------------------------------------------------------------------Partie Revert----------------------------------------------------------------------------------- */
+var revert = function(){
+    ssh.exec("cd /var/www/"+config.name+" && ls -l | nl").then((data)=> {
+        console.log('Choisissez la version a revert en fonction des numéros en début de lignes')
+        console.log(data);
+        prompt.start();
+        prompt.get(['number'], function (err, result) {
+            number = result.number;
+            rhash();
+        });
+    }).catch((error) => {
+        console.log("Error : " + error);
+      });
+}
+
+var rhash = function(int){
+    ssh.exec("cd /var/www/"+config.name+" && ls -l | head -n "+number+" | tail -n 1 | cut -c42-88").then((rhash)=> {
+        console.log('La version suivantes sera revert :'+ rhash);
+        hashToRevert = rhash;
+        Mongodelete();
+    }).catch((error) => {
+        console.log("Error : " + error);
+      });
+}
+
+var Mongodelete = function(){
+    ssh.exec('mongo '+config.db+' --eval "db.dropDatabase()"').then(()=> {
+        console.log('Ancienne db supprimée');
+        Mongocreate();
+    }).catch((error) => {
+        console.log("Infos : " + error);
+        Mongocreate();
+      });
+}
+
+var Mongocreate = function(){
+    console.log('mongorestore --host 127.0.0.1 /var/www/'+config.name+'/'+hashToRevert.replace('\n', '').replace('\r', '')+'/database');
+    ssh.exec('mongorestore --host 127.0.0.1 /var/www/'+config.name+'/'+hashToRevert.replace('\n', '').replace('\r', '')+'/database').then(()=> {
+        console.log('DB restore');
+        pm2Stop();
+    }).catch((error) => {
+        console.log("Infos : " + error);
+        pm2Stop();
+      });
+}
+/*------------------------------------------------------------------------------------Fin partie Revert-----------------------------------------------------------------------------*/
 var clone = function(){
 	ssh.exec('cd /var/www/'+config.name+  ' && ls -lt | nl | tail -n 1 | cut -c5-6').then((data) => {
      
@@ -100,7 +148,7 @@ ssh.exec(' sudo rm -rd /var/www/'+config.name+'/'+olddir).then(()=> {
 
 var crDir = function(){
     console.log(hash);
-ssh.exec(' sudo mkdir -p /var/www/'+config.name+'/'+hash).then(()=> {
+ssh.exec(' sudo mkdir -p /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')).then(()=> {
         console.log('dossier creer');
         gitclone();
 });
@@ -108,8 +156,8 @@ ssh.exec(' sudo mkdir -p /var/www/'+config.name+'/'+hash).then(()=> {
 }
 
 var gitclone = function(){
-    console.log('sudo git clone ' + GIT+'/'+config.name+ ' /var/www/'+config.name+'/'+hash);
-    ssh.exec(' sudo git clone ' + GIT+'/'+config.name+ ' /var/www/'+config.name+'/'+hash).then(()=> {
+    console.log('sudo git clone ' + GIT+'/'+config.name+ ' /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', ''));
+    ssh.exec(' sudo git clone ' + GIT+'/'+config.name+ ' /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')).then(()=> {
         console.log('dossier cloner');
         
         Db();
@@ -130,7 +178,10 @@ demande();
 }
  else{
     console.log('Non vous en avez pas');
-    //todo 
+    console.log(ip.address());
+    MongoDump();
+    npm();
+    //Finition
  }
 });
 }
@@ -151,7 +202,7 @@ var demande = function(){
         }  
         else{
             npm();
-            
+            //finition
         }  
  });
 }
@@ -168,7 +219,8 @@ var transfert = function(){
 }
 
 var npm = function(){
-    ssh.exec('cd /var/www/'+config.name+'/'+hash,' && sudo npm install').then(()=> {
+    console.log('cd /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+' && sudo npm install');
+    ssh.exec('cd /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+' && sudo npm install').then(()=> {
         console.log('Paquet npm installer');
         pm2Stop();
     }).catch((error) => {
@@ -198,12 +250,38 @@ var pm2Delete = function(){
 }
 
 var pm2Start = function(){
-    ssh.exec('pm2 start /var/www/'+config.name,'/'+hash+'/test/app/ app.js --name='+config.name).then(()=> {
+    console.log('pm2 start--interpreter babel-node  /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/test/app/app.js --name='+config.name)
+    ssh.exec('pm2 start --interpreter babel-node /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/test/app/app.js --name='+config.name).then(()=> {
         console.log('PM2 Démarrer');
+        process.exit()
     }).catch((error) => {
         console.log("Error : " + error);
+        process.exit()
       });
 }
+
+var MongoDump = function(){
+    console.log('sudo mongodump --db '+config.db+' --host '+ip.address()+' --port 27017 --out /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/database');
+    ssh.exec('mongodump --db '+config.db+' --host '+ip.address()+' --port 27017 --out /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/database').then(()=> {
+        console.log('Mongo Dump effectué');
+        MongoRestore();
+    }).catch((error) => {
+        console.log("Infos : " + error);
+        console.log('Mongo Dump effectué');
+        MongoRestore();
+      });
+}
+
+var MongoRestore = function(){
+    console.log('mongorestore --host 127.0.0.1 /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/database')
+    ssh.exec('mongorestore --host 127.0.0.1 /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/database').then(()=> {
+        console.log('Mongo Restore effectué');
+    }).catch((error) => {
+        console.log("Infos : " + error);
+        console.log('Mongo Restore effectué');
+      });
+}
+
 
 /*ssh.exec('').then(()=> {
         console.log('');
