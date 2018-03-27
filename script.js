@@ -147,8 +147,7 @@ ssh.exec(' sudo rm -rd /var/www/'+config.name+'/'+olddir).then(()=> {
 }
 
 var crDir = function(){
-    console.log(hash);
-ssh.exec(' sudo mkdir -p /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')).then(()=> {
+ssh.exec(' mkdir -p /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')).then(()=> {
         console.log('dossier creer');
         gitclone();
 });
@@ -162,7 +161,7 @@ var gitclone = function(){
         
         Db();
     }).catch((error) => {
-        console.log("Error : " + error);
+        //console.log("Error : " + error);
             Db();
       });
     
@@ -180,7 +179,6 @@ demande();
     console.log('Non vous en avez pas');
     console.log(ip.address());
     MongoDump();
-    npm();
     //Finition
  }
 });
@@ -219,9 +217,9 @@ var transfert = function(){
 }
 
 var npm = function(){
-    console.log('cd /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+' && sudo npm install');
-    ssh.exec('cd /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+' && sudo npm install').then(()=> {
-        console.log('Paquet npm installer');
+    console.log('Installation des modules veuiller patienter'.bgRed);
+    ssh.exec('cd /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/test && sudo npm install').then(()=> {
+        console.log('Paquet npm installer'.bgGreen);
         pm2Stop();
     }).catch((error) => {
         console.log("Error : " + error);
@@ -230,7 +228,7 @@ var npm = function(){
 
 var pm2Stop = function(){
     ssh.exec('pm2 stop '+config.name).then(()=> {
-        console.log('PM2 stopper');
+        console.log('PM2 stopper'.bgGreen);
         pm2Delete();
     }).catch((error) => {
         console.log('PM2 n\'existe pas encore');
@@ -241,18 +239,18 @@ var pm2Stop = function(){
 
 var pm2Delete = function(){
     ssh.exec('pm2 delete '+config.name).then(()=> {
-        console.log('PM2 supprimer');
+        console.log('PM2 supprimer'.bgGreen);
         pm2Start();
     }).catch((error) => {
         console.log('PM2 n\'existe pas encore');
         pm2Start();
       });
 }
-
+/* Attention il faut installer : "npm i -g babel-cli" car pm2 à des soucis de compréhension avec node */
 var pm2Start = function(){
     console.log('pm2 start--interpreter babel-node  /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/test/app/app.js --name='+config.name)
     ssh.exec('pm2 start --interpreter babel-node /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/test/app/app.js --name='+config.name).then(()=> {
-        console.log('PM2 Démarrer');
+        console.log('PM2 Démarrer'.bgGreen);
         process.exit()
     }).catch((error) => {
         console.log("Error : " + error);
@@ -267,7 +265,7 @@ var MongoDump = function(){
         MongoRestore();
     }).catch((error) => {
         console.log("Infos : " + error);
-        console.log('Mongo Dump effectué');
+        console.log('Mongo Dump effectué'.bgGreen);
         MongoRestore();
       });
 }
@@ -276,9 +274,11 @@ var MongoRestore = function(){
     console.log('mongorestore --host 127.0.0.1 /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/database')
     ssh.exec('mongorestore --host 127.0.0.1 /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/database').then(()=> {
         console.log('Mongo Restore effectué');
+        npm();
     }).catch((error) => {
         console.log("Infos : " + error);
-        console.log('Mongo Restore effectué');
+        console.log('Mongo Restore effectué'.bgGreen);
+        npm();
       });
 }
 
