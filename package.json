@@ -2,7 +2,7 @@
   "name": "nodescript",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "script.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -10,8 +10,10 @@
   "license": "ISC",
   "dependencies": {
     "colors": "^1.2.1",
+    "es6-promisify": "^6.0.0",
     "ip": "^1.1.5",
     "ping": "^0.2.2",
+    "promisify-fs": "^1.0.39",
     "prompt": "^1.0.0",
     "shelljs": "^0.8.1",
     "simple-ssh": "^1.0.0",
