@@ -1,3 +1,9 @@
-var ip = require('ip');
 var shell = require('shelljs');
-shell.exec('git log | head -n 1 | cut -c8-47', {});
+
+if (!shell.which('git')) {
+  shell.echo('Sorry, this script requires git');
+  shell.exit(1);
+}
+else {
+    console.log('You have git');
+}
