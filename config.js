@@ -1,6 +1,6 @@
 var config = {};
-config.host="192.168.1.48";
-config.name="Scripts";
-config.db="r";
-config.user="serveur";
+config.host="172.16.20.223";
+config.name="api-mail";
+config.db="restaurant";
+config.user="user";
 module.exports = config;

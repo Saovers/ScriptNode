@@ -16,22 +16,22 @@ var hash = shell.exec('git log | head -n 1 | cut -c8-47', {silent:true});
 
 let Dname = shell.exec('pwd | sed \'s#.*/##\'', { silent: true }).replace('\n', '').replace('\r', '');
 //FIXME: Decommanter la ligne du bon git
-const GIT = 'https://github.com/Saovers';
-//const GIT = 'git@github.com:TRIPTYK';
+//const GIT = 'https://github.com/Saovers';
+const GIT = 'git@github.com:TRIPTYK';
 let config;
 
 let init = async ()=>{
      try{
-        let configExists =  await fsP.fileExists(''+process.cwd()+'/config2.js') 
+        let configExists =  await fsP.fileExists(''+process.cwd()+'/config.js') 
         let exist = (configExists !== null) ?  true : false;
         
         console.log('file exists ? ' + exist);
         if (exist == false){
             console.log('Le fichier n\'existe pas nous allons le créer ensemble');
-            let logger =  fs.createWriteStream("/home/christopher/ScriptNode/config2.js");
+            let logger =  fs.createWriteStream(''+process.cwd()+'/config.js');
             prompt.start();
             const {host} = await prompt.get(["host"]);
-            console.log(`  host: ${host},`);
+            
             logger.write('var config = {};\n');
             logger.write('config.host="' + `${host}` + '";\n');
             console.log('Le nom de votre projet est : '+Dname+' (y or n)?');
@@ -43,8 +43,8 @@ let init = async ()=>{
                 logger.write('config.db="' + `${db}` + '";\n');
                 const {user} = await prompt.get(["user"]);
                 logger.write('config.user="' + `${user}` + '";\n');
-                logger.write('module.exports = config;\n');
-                config = require("./config2.js");
+                fs.appendFileSync(''+process.cwd()+'/config.js', 'module.exports = config;\n');
+                config = require("./config.js");
              sshconfig = {
             host: config.host,
             username: config.user,
@@ -52,6 +52,7 @@ let init = async ()=>{
             identity: '/home/christopher/.ssh/id_rsa'
         }
         ssh = new SSH2Promise(sshconfig);
+        process.exit();
             }
             else{
                 console.log('Veuillez entrer le nom correcte');
@@ -61,8 +62,8 @@ let init = async ()=>{
                 logger.write('config.db="' + `${db}`+ '";\n');
                 const {user} = await prompt.get(["user"]);
                 logger.write('config.user="' + `${user}` + '";\n');
-                logger.write('module.exports = config;\n');
-                config = require("./config2.js");
+                fs.appendFileSync(''+process.cwd()+'/config.js', 'module.exports = config;\n');
+                config = require("./config.js");
              sshconfig = {
             host: config.host,
             username: config.user,
@@ -70,11 +71,12 @@ let init = async ()=>{
             identity: '/home/christopher/.ssh/id_rsa'
         }
         ssh = new SSH2Promise(sshconfig);
+        process.exit();
             }
         }
          else{
              console.log('Le fichier de configuration existe');
-             config = require("./config2.js");
+             config = require("./config.js");
              sshconfig = {
             host: config.host,
             username: config.user,
@@ -166,7 +168,7 @@ let cloneorrevert = async ()=> {
 let testDir = async()=> {
     
     await ssh.exec('mkdir -p /var/www/' + config.name);
-    console.log('dossier principale déjà créer');
+    console.log('Le dossier /var/www/'+config.name+' existe déjà');
 }
 
 let clone = async()=> {
@@ -177,39 +179,41 @@ let clone = async()=> {
          await Olddirectory();
         }
         else {
-            console.log('Dossier OK');
-            await crDir();
+            console.log('Pas de suppression nécessaire'.bgBlue);
+            //await crDir();
         }
 }
 
 //Fonction appelée dans clone, elle prend le nom du dossier le plus vieux
 let Olddirectory = async ()=> {
 
-    ssh.exec('cd /var/www/' + config.name + ' && ls -tl | tail -n 1 | cut -c42-96').then((olddirl) => {
-        console.log('Le vieux dossier est : ' + olddirl);
+    let olddirl = await ssh.exec('cd /var/www/' + config.name + ' && ls -tl | tail -n 1 | cut -c42-96')
+    
+        console.log('Le dossier le plus vieux est : ' + olddirl);
         olddir = olddirl;
-        //RemoveOld();
-
-    }).catch((error) => {
-        console.log("Error : " + error);
-    });
+        await RemoveOld();
 
 }
 
 //Fonction appelée dans Olddirectory, elle supprime le vieux dossier s'il y a + de 10 sous dossiers dans le projets
-let RemoveOld = function () {
+let RemoveOld = async ()=> {
     if (olddir==""){
         console.log('La variable olddir est vide, attention cela risque de supprimer tous vos dossiers, vérifier dans le code le soucis');
-        crDir();
+        //await crDir();
     }
     else{
         console.log(olddir);
-        ssh.exec(' rm -rd /var/www/' + config.name + '/' + olddir).then(() => {
+        try{
+            console.log(' rm -rd /var/www/' + config.name + '/' + olddir);
+            
+            await ssh.exec(' rm -rd /var/www/' + config.name + '/' + olddir)
             console.log('dossier supprimer');
-            crDir();
-        }).catch((error) => {
-            console.log("Error : " + error);
-        });
+        }
+       catch(error){
+           console.log(error.toString('utf8'));
+           
+       }
+        //await crDir();
     }
    
 }
@@ -217,19 +221,19 @@ let RemoveOld = function () {
 //Fonction appelée dans RemoveOld, elle crée le dossier qui acceuillera le projet sous ce format : /var/www/NameProject/Hash/DirProject
 let crDir = async ()=> {
     await ssh.exec(' mkdir -p /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', ''))
-    console.log('dossier creer');
+    console.log('Création du répertoire : '+hash.replace('\n', '').replace('\r', ''));
 
 }
 
 let gitclone = async ()=> {
     try{
         console.log(' git clone ' + GIT + '/' + config.name + ' /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', ''));
-    await ssh.exec(' git clone ' + GIT + '/' + config.name + ' /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', ''));
+     await ssh.exec(' git clone ' + GIT + '/' + config.name + ' /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', ''));
     console.log('dossier cloner');
     }
     catch(error){
         console.log(error.toString('utf8'));
-        //console.log('Le projet est déjà cloner');
+        //console.log('Le projet est déjà cloner'.bgBlue);
         
     }
 }
@@ -249,12 +253,13 @@ let Db = async () =>{
     prompt.start();
     const {resBd} = await prompt.get(["resBd"]);
      if (resBd == "y") {
+         console.log('Copie du dossier mongoUpdate');
         await copieMongoUpdate();
         await countMongoUpdate();
         await recupName();
      }
      else {
-        console.log('Non vous en avez pas');
+        console.log('Importation de la base de donnée :'+config.db);
         await MongoDump();
         await MongoRestore();
         await npm();
@@ -268,7 +273,7 @@ let copieMongoUpdate = async ()=> {
 
     }
     catch(error){
-        console.log('Le dossier existe déjà');
+        console.log('Le dossier mongoUpdate existe déjà et les scripts sont déjà transferer');
         
     }
 }
@@ -305,11 +310,11 @@ let recupName = async ()=> {
 let npm = async ()=> {
     try{
         await ssh.exec('cd /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/ && npm install');
-        console.log('Paquet npm installer'.bgGreen);
+        console.log('Paquets npm installés'.bgGreen);
     }
     catch(error){
         console.log(error.toString('utf8'));
-        console.log('Paquet NPM déjà installer');
+        console.log('Paquets NPM déjà installés'.bgBlue);
     }
        
    
@@ -324,7 +329,7 @@ let pm2Stop = async () =>{
     
     catch(error){
     console.log(error.toString('utf8'));
-    console.log('Il n\'y a pas de porcess déjà actif de ce projet')
+    console.log('Il n\'y a pas de process actif pour ce projet'.bgRed);
 
       }  
    
@@ -340,6 +345,7 @@ let pm2Delete = async ()=> {
         
         catch(error){
             console.log(error.toString('utf8'));
+            console.log('Il n\'y a pas de process supprimable pour ce projet'.bgRed)
           }  
    
 }
@@ -347,8 +353,7 @@ let pm2Delete = async ()=> {
 //fonction appelée dans pm2Delete, elle démarre le process grâce au fichier app.js situer dans /app
 let pm2Start = async ()=> {
     try {
-        //FIXME: Endroit du script app.js
-    await ssh.exec('pm2 start /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/test/app/app.js --name=' + config.name)
+    await ssh.exec('pm2 start /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/app.js --name=' + config.name)
         console.log('PM2 Démarrer'.bgGreen);
         process.exit();
     }
@@ -363,8 +368,7 @@ let MongoDump = async () =>{
    
     shell.exec('mongodump --db ' + config.db + ' -o /tmp', { silent: true });
     try{
-        await ssh.exec('mkdir /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database');
-console.log(error.toString('utf8'));
+        await ssh.exec('mkdir /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database/'+config.db);
         console.log('Dossier database créer');
         shell.exec('scp -r -p /tmp/' + config.db + ' ' + config.user + '@' + config.host + ':/var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database', { silent: true });
    }
@@ -376,7 +380,7 @@ console.log(error.toString('utf8'));
 //fonction appelée dans MongoDump(), elle va restore la db sur le serveur
 let MongoRestore = async ()=> {
     try{
-        await ssh.exec('mongorestore --db ' + config.db + ' /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database/')
+        await ssh.exec('mongorestore --db ' + config.db + ' /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database/'+config.db);
         console.log('Mongo Restore effectué');
             shell.exec('rm -rf /tmp/' + config.db, { silent: true });
 
@@ -402,7 +406,7 @@ let revert = async ()=> {
        
 
 let rhash = async ()=> {
-    let rhash = await ssh.exec("cd /var/www/" + config.name + " && ls -l | head -n " + number + " | tail -n 1 | cut -c48-88");
+    let rhash = await ssh.exec("cd /var/www/" + config.name + " && ls -l | head -n " + number + " | tail -n 1 | cut -c42-88");
         console.log('La version suivantes sera revert :' + rhash);
         hashToRevert = rhash;
 }
@@ -426,7 +430,7 @@ let Mongocreate = async ()=> {
 let pm2StartR = async ()=> {
     try {
         //FIXME: Endroit du script app.js
-    await ssh.exec('pm2 start /var/www/' + config.name + '/' + hashToRevert.replace('\n', '').replace('\r', '') + '/test/app/app.js --name=' + config.name)
+    await ssh.exec('pm2 start /var/www/' + config.name + '/' + hashToRevert.replace('\n', '').replace('\r', '') + '/app.js --name=' + config.name)
         console.log('PM2 Démarrer'.bgGreen);
         process.exit();
     }
