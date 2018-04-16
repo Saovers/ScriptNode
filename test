@@ -1,9 +1,38 @@
 var shell = require('shelljs');
+var SSH2Promise = require('ssh2-promise');
+sshconfig = {
+  host: "192.168.1.48",
+  username: "serveur",
+  identity: '/home/christopher/.ssh/id_rsa'
+}
+ssh = new SSH2Promise(sshconfig);
+var isInstalled = function () {
+    ssh.exec("dpkg -s git | head -2 | echo $?").then((data) => {
+        console.log(data);
+        console.log('Le paquet git est bien installé'.bgGreen);
+    }).catch((error) => {
+        console.log("Error : " + error);
+        process.exit();
+    });
 
-if (!shell.which('git')) {
-  shell.echo('Sorry, this script requires git');
-  shell.exit(1);
+
+    ssh.exec("dpkg -s mongodb-org | head -2 | echo $?").then((data) => {
+      console.log(data);
+      console.log('Le paquet mongoDB est bien installé'.bgGreen);
+      
+  }).catch((error) => {
+      console.log("Error : " + error);
+      process.exit();
+  });
+
+  ssh.exec(" pm2 -v | echo $?").then((data) => {
+    console.log(data);
+    console.log('Le paquet PM2 est bien installé'.bgGreen);
+
+}).catch((error) => {
+    console.log("Error : " + error);
+    process.exit();
+});
 }
-else {
-    console.log('You have git');
-}
+
+isInstalled();
