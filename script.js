@@ -15,7 +15,9 @@ var hash = shell.exec('git log | head -n 1 | cut -c8-47', {silent:true});
 
 
 let Dname = shell.exec('pwd | sed \'s#.*/##\'', { silent: true }).replace('\n', '').replace('\r', '');
-const GIT = 'git@github.com:TRIPTYK';
+//FIXME: Decommanter la ligne du bon git
+const GIT = 'https://github.com/Saovers';
+//const GIT = 'git@github.com:TRIPTYK';
 let config;
 
 let init = async ()=>{
@@ -221,16 +223,27 @@ let crDir = async ()=> {
 
 let gitclone = async ()=> {
     try{
+        console.log(' git clone ' + GIT + '/' + config.name + ' /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', ''));
     await ssh.exec(' git clone ' + GIT + '/' + config.name + ' /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', ''));
     console.log('dossier cloner');
     }
     catch(error){
         console.log(error.toString('utf8'));
-        console.log('Le projet est déjà cloner');
+        //console.log('Le projet est déjà cloner');
         
     }
 }
 
+/*let compareHash = async()=>{
+    let tHash = await ssh.exec(' cd /var/www/'+config.name+'/'+hash+' | git log | head -n 1 | cut -c8-47');
+    if (tHash==hash){
+        console.log('Le deux hash on la même valeur');
+    }
+    else{
+        console.log('Les deux hash sont différent, veuillez commit vos dernier changement pour continuer');
+    }
+}
+*/
 let Db = async () =>{
     console.log('Avez vous une base de données déjà présente sur le serveur de destination?(y or n)');
     prompt.start();
@@ -250,8 +263,14 @@ let Db = async () =>{
 
 //Copie du dossier mongoUpdate dans le répertoire sur le serveur 
 let copieMongoUpdate = async ()=> {
-    await shell.exec('scp -r -p ' + process.cwd() + '/mongoUpdate ' + config.user + '@' + config.host + ':/var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', ''), { silent: true });
-    
+    try{
+        await shell.exec('scp -r -p ' + process.cwd() + '/mongoUpdate ' + config.user + '@' + config.host + ':/var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', ''), { silent: true });
+
+    }
+    catch(error){
+        console.log('Le dossier existe déjà');
+        
+    }
 }
 
 //fonction qui va compter combien de script de MAJ il y a dans mongoUpdate
@@ -341,12 +360,13 @@ let pm2Start = async ()=> {
 
 //Fonction apellée dans db(), elle dump la db local en reprenant le nom issu du fichier config.js
 let MongoDump = async () =>{
-   try{
-    await shell.exec('mongodump --db ' + config.db + ' -o /tmp', { silent: true });
-        ssh.exec('mkdir /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database');
+   
+    shell.exec('mongodump --db ' + config.db + ' -o /tmp', { silent: true });
+    try{
+        await ssh.exec('mkdir /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database');
+console.log(error.toString('utf8'));
         console.log('Dossier database créer');
         shell.exec('scp -r -p /tmp/' + config.db + ' ' + config.user + '@' + config.host + ':/var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database', { silent: true });
-    
    }
    catch(error){
     console.log('DB Dump');
@@ -358,8 +378,8 @@ let MongoRestore = async ()=> {
     try{
         await ssh.exec('mongorestore --db ' + config.db + ' /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database/')
         console.log('Mongo Restore effectué');
-        shell.exec('rm -rf /tmp/' + config.db, { silent: true });
-        
+            shell.exec('rm -rf /tmp/' + config.db, { silent: true });
+
     }
     catch(error){
             console.log('DB restore');
@@ -403,6 +423,18 @@ let Mongocreate = async ()=> {
         console.error("Db Restore");
     }
 }
+let pm2StartR = async ()=> {
+    try {
+        //FIXME: Endroit du script app.js
+    await ssh.exec('pm2 start /var/www/' + config.name + '/' + hashToRevert.replace('\n', '').replace('\r', '') + '/test/app/app.js --name=' + config.name)
+        console.log('PM2 Démarrer'.bgGreen);
+        process.exit();
+    }
+    catch(error){
+        console.log(error.toString('utf8'));
+        process.exit();
+    }
+}
 /*------------------------------------------------------------------------------------Fin partie Revert---------------------
 
 /* --------------------------------Global Clone-------------------------------------*/
@@ -435,14 +467,14 @@ let globalRevert= async()=>{
 
         await pm2Stop();
         await pm2Delete();
-        await pm2Start();
+        await pm2StartR();
     }
     else {
         await Mongodelete();
         await Mongocreate();
         await pm2Stop();
         await pm2Delete();
-        await pm2Start();
+        await pm2StartR();
     }
 }
 /*--------------------------------Global Init---------------------------------------*/

@@ -224,10 +224,40 @@ var Mongocreate = function () {
     console.log('mongorestore --host 127.0.0.1 /var/www/' + config.name + '/' + hashToRevert.replace('\n', '').replace('\r', '') + '/database/'+config.db);
     ssh.exec('mongorestore --db ' + config.db + ' /var/www/' + config.name + '/' + hashToRevert.replace('\n', '').replace('\r', '') + '/database/'+config.db).then(() => {
         console.log('DB restore');
-        pm2Stop();
+        pm2StopR();
     }).catch((error) => {
         console.log("DB restore");
-        pm2Stop();
+        pm2StopR();
+    });
+}
+
+var pm2StopR = function () {
+    ssh.exec('pm2 stop ' + config.name).then(() => {
+        console.log('PM2 stopper'.bgGreen);
+        pm2DeleteR();
+    }).catch((error) => {
+        console.log('PM2 n\'existe pas encore');
+        pm2StartR();
+
+    });
+}
+
+//fonction appelée dans pm2Stop(), elle supprime le conteneur pm2 portant le nom du projet
+var pm2DeleteR = function () {
+    ssh.exec('pm2 delete ' + config.name).then(() => {
+        console.log('PM2 supprimer'.bgGreen);
+        pm2StartR();
+    }).catch((error) => {
+        console.log('PM2 n\'existe pas encore');
+        pm2StartR();
+    });
+}
+var pm2StartR = function () {
+    //console.log('pm2 start--interpreter babel-node  /var/www/'+config.name+'/'+hash.replace('\n', '').replace('\r', '')+'/test/app/app.js --name='+config.name)
+    ssh.exec('pm2 start /var/www/' + config.name + '/' + hashToRevert.replace('\n', '').replace('\r', '') + '/app.js --name=' + config.name).then(() => {
+        console.log('PM2 Démarrer'.bgGreen);
+    }).catch((error) => {
+        console.log("Error : " + error);
     });
 }
 /*------------------------------------------------------------------------------------Fin partie Revert-----------------------------------------------------------------------------*/
