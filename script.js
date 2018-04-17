@@ -368,12 +368,12 @@ let MongoDump = async () =>{
    
     shell.exec('mongodump --db ' + config.db + ' -o /tmp', { silent: true });
     try{
-        await ssh.exec('mkdir /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database/'+config.db);
+        await ssh.exec('mkdir /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database/');
         console.log('Dossier database créer');
         shell.exec('scp -r -p /tmp/' + config.db + ' ' + config.user + '@' + config.host + ':/var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database', { silent: true });
    }
    catch(error){
-    console.log('DB Dump');
+    console.log(error.toString('utf8'));
    }
 }
 
@@ -386,7 +386,7 @@ let MongoRestore = async ()=> {
 
     }
     catch(error){
-            console.log('DB restore');
+        console.log(error.toString('utf8'));
     }
     
 }
@@ -420,11 +420,12 @@ let Mongodelete = async ()=> {
 let Mongocreate = async ()=> {
     
     try{
-        await ssh.exec('mongorestore --db ' + config.db + ' /var/www/' + config.name + '/' + hashToRevert.replace('\n', '').replace('\r', '') + '/database/');
+       
+        await ssh.exec('mongorestore --db ' + config.db + ' /var/www/' + config.name + '/' + hashToRevert.replace('\n', '').replace('\r', '') + '/database/'+config.db);
         console.log('DB restore');
     }
     catch(error){
-        console.error("Db Restore");
+        console.log(error.toString('utf8'));
     }
 }
 let pm2StartR = async ()=> {
