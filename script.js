@@ -347,7 +347,7 @@ let pm2Start = async ()=> {
     }
 }
 
-//Fonction qui va dump la DB en local dans /tmp, ensuite elle crée le dossier database sur le serveur dans /var/www/project/hash et finalement elle transmet avec scp la db qui est dans /tmp 
+//Fonction qui va dump la DB mise à jour grâce au script de MAJ, elle le fait dans /var/www/project/hash
 let MongoDumpMAJ = async () =>{
     try{
         await ssh.exec('mongodump --db ' + config.db + ' -o /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database');
