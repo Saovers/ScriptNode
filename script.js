@@ -20,7 +20,6 @@ let init = async ()=>{
      try{
         let configExists =  await fsP.fileExists(''+process.cwd()+'/config.js') 
         let exist = (configExists !== null) ?  true : false;
-        console.log(SSHDirectory);
         console.log('file exists ? ' + exist);
         if (exist == false){
             console.log('Le fichier n\'existe pas nous allons le créer ensemble');
@@ -283,6 +282,7 @@ let transfert = async () =>{
 //Fonction appelée dans transfert(), elle récupère le nom des scripts dans mongoUpdate, quand tous les scripts sont transmis elle exécute npm()
 let recupName = async ()=> {
     if (number>nbreMU){
+        await MongoDumpMAJ();
         await npm();
     }
     if (number <= nbreMU) {
@@ -346,6 +346,18 @@ let pm2Start = async ()=> {
         process.exit();
     }
 }
+
+//Fonction qui va dump la DB en local dans /tmp, ensuite elle crée le dossier database sur le serveur dans /var/www/project/hash et finalement elle transmet avec scp la db qui est dans /tmp 
+let MongoDumpMAJ = async () =>{
+    try{
+        await ssh.exec('mongodump --db ' + config.db + ' -o /var/www/' + config.name + '/' + hash.replace('\n', '').replace('\r', '') + '/database');
+        console.log('La base de données est sauvegardée dans /database');
+   }
+    catch(error){
+    console.log(error.toString('utf8'));
+   }
+}
+
 
 //Fonction qui va dump la DB en local dans /tmp, ensuite elle crée le dossier database sur le serveur dans /var/www/project/hash et finalement elle transmet avec scp la db qui est dans /tmp 
 let MongoDump = async () =>{
