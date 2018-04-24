@@ -184,7 +184,7 @@ let Olddirectory = async ()=> {
 
 //Fonction appelée dans Olddirectory, elle supprime le vieux dossier s'il y a + de 10 sous dossiers dans le projets
 let RemoveOld = async ()=> {
-    if (olddir==""){
+    if (olddir == null || olddir == ''){
         console.log('La variable olddir est vide, attention cela risque de supprimer tous vos dossiers, vérifier dans le code le soucis');
     }
     else{
